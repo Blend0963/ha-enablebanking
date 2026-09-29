@@ -58,6 +58,9 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
         self._aspsp_country: str = ""
         self._psu_type: str = PSU_PERSONAL
         self._auth_url: str = ""
+        # True once self._auth_url has been put on screen. Any later render of
+        # the auth form mints a new link: see _async_show_auth_form.
+        self._auth_url_shown: bool = False
 
     # ------------------------------------------------------------------ #
     # Step 1: private key + app ID                                         #
@@ -228,8 +231,9 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
         """Show the bank's auth URL and collect the returned auth code."""
         errors: dict[str, str] = {}
 
-        if user_input is not None:
-            auth_code = user_input[CONF_AUTH_CODE].strip()
+        # An empty submit carries no code: it only asks for a new link.
+        auth_code = (user_input or {}).get(CONF_AUTH_CODE, "").strip()
+        if auth_code:
             http = async_get_clientsession(self.hass)
             client = EnableBankingClient.for_config_flow(http, self._jwt)
             try:
@@ -244,12 +248,53 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 return await self._async_finish_session(session_data)
 
+        return await self._async_show_auth_form("auth", errors)
+
+    async def _async_show_auth_form(self, step_id: str, errors: dict[str, str]) -> ConfigFlowResult:
+        """Show the bank link and code field, with a new link on every redraw.
+
+        A link from POST /auth is short-lived: an unused one stopped working
+        after an hour, and a link reopened after a failed attempt at the bank
+        was dead too. Enable Banking answers a dead link with a redirect to
+        ``?error=invalid_request`` and no code. This form is drawn again after
+        a failed or empty submit, and whenever the dialog is reopened: HA
+        re-runs the current step on reopen, and a closed reauth dialog keeps
+        its flow alive. Reusing the stored link there leaves the user stuck
+        with a dead one until the flow is discarded (reload or restart).
+        """
+        if self._auth_url_shown:
+            await self._async_new_auth_url(errors)
+        self._auth_url_shown = True
         return self.async_show_form(
-            step_id="auth",
-            data_schema=vol.Schema({vol.Required(CONF_AUTH_CODE): str}),
+            step_id=step_id,
+            data_schema=vol.Schema({vol.Optional(CONF_AUTH_CODE): str}),
             description_placeholders={"auth_url": self._auth_url},
             errors=errors,
         )
+
+    async def _async_new_auth_url(self, errors: dict[str, str]) -> None:
+        """Replace self._auth_url with a new link, or set errors["base"].
+
+        The JWT is minted again first: a parked reauth flow can outlive the
+        23 h JWT it was started with.
+        """
+        jwt = self._mint_jwt_or_none(self._private_key, self._app_id, errors)
+        if jwt is None:
+            return
+        self._jwt = jwt
+        http = async_get_clientsession(self.hass)
+        client = EnableBankingClient.for_config_flow(http, jwt)
+        try:
+            self._auth_url = await client.async_start_auth(
+                self._aspsp_name, self._aspsp_country, self._psu_type
+            )
+        except EnableBankingAuthenticationError:
+            errors["base"] = "invalid_auth"
+        except EnableBankingConnectionError:
+            errors["base"] = "cannot_connect"
+        except Exception:
+            _LOGGER.exception("Unexpected error creating a new bank link")
+            errors["base"] = "unknown"
 
     async def _async_finish_session(self, session_data: dict[str, Any]) -> ConfigFlowResult:
         session_id = session_data.get("session_id") or session_data.get("uid", "")
@@ -265,19 +310,9 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
             EnableBankingSessionError,
             EnableBankingAPIError,
         ):
-            return self.async_show_form(
-                step_id="auth",
-                data_schema=vol.Schema({vol.Required(CONF_AUTH_CODE): str}),
-                description_placeholders={"auth_url": self._auth_url},
-                errors={"base": "invalid_session"},
-            )
+            return await self._async_show_auth_form("auth", {"base": "invalid_session"})
         except EnableBankingConnectionError:
-            return self.async_show_form(
-                step_id="auth",
-                data_schema=vol.Schema({vol.Required(CONF_AUTH_CODE): str}),
-                description_placeholders={"auth_url": self._auth_url},
-                errors={"base": "cannot_connect"},
-            )
+            return await self._async_show_auth_form("auth", {"base": "cannot_connect"})
 
         unique_id = hashlib.sha256(session_id.encode()).hexdigest()[:12]
         await self.async_set_unique_id(unique_id)
@@ -419,8 +454,9 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
         """Collect new auth code and update the existing entry."""
         errors: dict[str, str] = {}
 
-        if user_input is not None:
-            auth_code = user_input[CONF_AUTH_CODE].strip()
+        # An empty submit carries no code: it only asks for a new link.
+        auth_code = (user_input or {}).get(CONF_AUTH_CODE, "").strip()
+        if auth_code:
             http = async_get_clientsession(self.hass)
             client = EnableBankingClient.for_config_flow(http, self._jwt)
             try:
@@ -449,12 +485,7 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
                     },
                 )
 
-        return self.async_show_form(
-            step_id="reauth_auth",
-            data_schema=vol.Schema({vol.Required(CONF_AUTH_CODE): str}),
-            description_placeholders={"auth_url": self._auth_url},
-            errors=errors,
-        )
+        return await self._async_show_auth_form("reauth_auth", errors)
 
 
 # ------------------------------------------------------------------ #

@@ -26,9 +26,12 @@
       },
       "auth": {
         "title": "Authorise at your bank",
-        "description": "**[Open this link to authorise at your bank]({auth_url})**\n\nAfter logging in you will be redirected to enablebanking.com. Copy the `code` value from the URL bar (it looks like `?code=abc...`) and paste it below.",
+        "description": "**[Open this link to authorise at your bank]({auth_url})**\n\nAfter logging in you will be redirected to enablebanking.com. Copy the `code` value from the URL bar (it looks like `?code=abc...`) and paste it below.\n\nA link is valid for about an hour. If the bank shows an error, or the address on enablebanking.com has `error=` instead of `code=`, submit with the field empty to get a new link.",
         "data": {
           "auth_code": "Authorisation code"
+        },
+        "data_description": {
+          "auth_code": "Leave empty and submit to get a new link."
         }
       },
       "reauth_jwt": {
@@ -41,9 +44,12 @@
       },
       "reauth_auth": {
         "title": "Authorise at your bank",
-        "description": "**[Open this link to re-authorise at your bank]({auth_url})**\n\nPaste the `code` value from the redirect URL below.",
+        "description": "**[Open this link to re-authorise at your bank]({auth_url})**\n\nPaste the `code` value from the redirect URL below.\n\nA link is valid for about an hour. If the bank shows an error, or the address on enablebanking.com has `error=` instead of `code=`, submit with the field empty to get a new link.",
         "data": {
           "auth_code": "Authorisation code"
+        },
+        "data_description": {
+          "auth_code": "Leave empty and submit to get a new link."
         }
       }
     },
@@ -51,7 +57,7 @@
       "cannot_connect": "Cannot connect to Enable Banking, check your internet connection.",
       "invalid_auth": "Credentials rejected. Check that the private key is complete PEM content and that it belongs to the application ID you entered.",
       "invalid_session": "The session ID is unknown, revoked, or expired. Complete the bank authorisation again.",
-      "invalid_auth_code": "The authorisation code was rejected. Make sure you copied the full `code` value from the redirect URL.",
+      "invalid_auth_code": "The authorisation code was rejected. Copy the full `code` value from the redirect URL, or authorise again with the new link above.",
       "unknown": "Unexpected error, check the Home Assistant log for details."
     },
     "abort": {

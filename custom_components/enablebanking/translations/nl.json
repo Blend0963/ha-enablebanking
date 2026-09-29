@@ -26,9 +26,12 @@
       },
       "auth": {
         "title": "Autoriseer bij je bank",
-        "description": "**[Open deze link om bij je bank te autoriseren]({auth_url})**\n\nNa het inloggen word je doorgestuurd naar enablebanking.com. Kopieer de waarde van `code` uit de URL-balk (die ziet eruit als `?code=abc...`) en plak hem hieronder.",
+        "description": "**[Open deze link om bij je bank te autoriseren]({auth_url})**\n\nNa het inloggen word je doorgestuurd naar enablebanking.com. Kopieer de waarde van `code` uit de URL-balk (die ziet eruit als `?code=abc...`) en plak hem hieronder.\n\nEen link is ongeveer een uur geldig. Geeft de bank een fout, of staat er in het adres op enablebanking.com `error=` in plaats van `code=`? Verstuur dan met een leeg veld voor een nieuwe link.",
         "data": {
           "auth_code": "Autorisatiecode"
+        },
+        "data_description": {
+          "auth_code": "Laat leeg en verstuur voor een nieuwe link."
         }
       },
       "reauth_jwt": {
@@ -41,9 +44,12 @@
       },
       "reauth_auth": {
         "title": "Autoriseer bij je bank",
-        "description": "**[Open deze link om opnieuw bij je bank te autoriseren]({auth_url})**\n\nPlak de waarde van `code` uit de omleidings-URL hieronder.",
+        "description": "**[Open deze link om opnieuw bij je bank te autoriseren]({auth_url})**\n\nPlak de waarde van `code` uit de omleidings-URL hieronder.\n\nEen link is ongeveer een uur geldig. Geeft de bank een fout, of staat er in het adres op enablebanking.com `error=` in plaats van `code=`? Verstuur dan met een leeg veld voor een nieuwe link.",
         "data": {
           "auth_code": "Autorisatiecode"
+        },
+        "data_description": {
+          "auth_code": "Laat leeg en verstuur voor een nieuwe link."
         }
       }
     },
@@ -51,7 +57,7 @@
       "cannot_connect": "Kan geen verbinding maken met Enable Banking, controleer je internetverbinding.",
       "invalid_auth": "Gegevens afgewezen. Controleer of de privésleutel volledige PEM-inhoud is en bij het ingevoerde applicatie-ID hoort.",
       "invalid_session": "Het sessie-ID is onbekend, ingetrokken of verlopen. Doorloop de bankautorisatie opnieuw.",
-      "invalid_auth_code": "De autorisatiecode werd afgewezen. Kopieer de volledige waarde van `code` uit de omleidings-URL.",
+      "invalid_auth_code": "De autorisatiecode werd afgewezen. Kopieer de volledige waarde van `code` uit de omleidings-URL, of autoriseer opnieuw met de nieuwe link hierboven.",
       "unknown": "Onbekende fout, bekijk het Home Assistant-logboek voor meer informatie."
     },
     "abort": {
