@@ -460,6 +460,89 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Collect new auth code and update the existing entry."""
+        return await self._async_replace_session(
+            "reauth_auth", self._get_reauth_entry(), user_input, "reauth_successful"
+        )
+
+    # ------------------------------------------------------------------ #
+    # Reconfigure flow: renew consent before it expires                    #
+    # ------------------------------------------------------------------ #
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Renew the bank consent while the current one is still valid.
+
+        This is where the expiry warning sends the user. Unlike reauth there is
+        no fast path: the session is still alive here by definition, and the
+        point is to replace it with a consent that runs a fresh period. Reauth
+        cannot do this, because its fast path would revalidate the old session
+        and finish without ever reaching the bank. The stored credentials
+        normally carry straight through to the bank link; the form below only
+        appears when they are missing or no longer accepted.
+        """
+        errors: dict[str, str] = {}
+        entry = self._get_reconfigure_entry()
+
+        if user_input is None:
+            pk = entry.data.get(CONF_PRIVATE_KEY, "")
+            app_id = entry.data.get(CONF_APP_ID, "")
+        else:
+            pk = user_input[CONF_PRIVATE_KEY].strip()
+            app_id = user_input[CONF_APP_ID].strip()
+
+        if pk and app_id:
+            self._private_key, self._app_id = pk, app_id
+            self._aspsp_name = entry.data.get(CONF_ASPSP_NAME, "")
+            self._aspsp_country = entry.data.get(CONF_ASPSP_COUNTRY, "")
+            self._psu_type = entry.data.get(CONF_PSU_TYPE, PSU_PERSONAL)
+            await self._async_new_auth_url(errors)
+            if not errors:
+                return await self.async_step_reconfigure_auth()
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_PRIVATE_KEY,
+                        default=pk or vol.UNDEFINED,
+                    ): TextSelector(TextSelectorConfig(multiline=True, type=TextSelectorType.TEXT)),
+                    vol.Required(
+                        CONF_APP_ID,
+                        default=app_id or vol.UNDEFINED,
+                    ): str,
+                }
+            ),
+            description_placeholders={
+                "aspsp_name": entry.data.get(CONF_ASPSP_NAME, "your bank"),
+            },
+            errors=errors,
+        )
+
+    async def async_step_reconfigure_auth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Collect the auth code for the renewed consent and update the entry."""
+        return await self._async_replace_session(
+            "reconfigure_auth",
+            self._get_reconfigure_entry(),
+            user_input,
+            "reconfigure_successful",
+        )
+
+    async def _async_replace_session(
+        self,
+        step_id: str,
+        entry: ConfigEntry,
+        user_input: dict[str, Any] | None,
+        success_reason: str,
+    ) -> ConfigFlowResult:
+        """Trade the bank's auth code for a new session on an existing entry.
+
+        Shared by reauth and reconfigure. Both end the same way: the new session
+        is written over the entry's old one and the entry reloads.
+        """
         errors: dict[str, str] = {}
 
         # An empty submit carries no code: it only asks for a new link.
@@ -474,16 +557,18 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
             except EnableBankingConnectionError:
                 errors["base"] = "cannot_connect"
             except Exception:
-                _LOGGER.exception("Unexpected error creating session during reauth")
+                _LOGGER.exception("Unexpected error creating session during %s", self.source)
                 errors["base"] = "unknown"
             else:
                 session_id = session_data.get("session_id") or session_data.get("uid", "")
                 consent_expires_at: str | None = (session_data.get("access") or {}).get(
                     "valid_until"
                 )
-                reauth_entry = self._get_reauth_entry()
+                # The reason is passed explicitly: left out, HA 2026.10 shows its
+                # own generic text and drops this integration's abort message.
                 return self.async_update_reload_and_abort(
-                    reauth_entry,
+                    entry,
+                    reason=success_reason,
                     data_updates={
                         CONF_JWT: self._jwt,
                         CONF_PRIVATE_KEY: self._private_key,
@@ -493,7 +578,7 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
                     },
                 )
 
-        return await self._async_show_auth_form("reauth_auth", errors)
+        return await self._async_show_auth_form(step_id, errors)
 
 
 # ------------------------------------------------------------------ #

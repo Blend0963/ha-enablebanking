@@ -51,6 +51,24 @@
         "data_description": {
           "auth_code": "Laat leeg en verstuur voor een nieuwe link."
         }
+      },
+      "reconfigure": {
+        "title": "Toestemming vernieuwen",
+        "description": "Om de **{aspsp_name}**-toestemming te vernieuwen heeft de integratie je privésleutel en applicatie-ID nodig. De opgeslagen gegevens ontbreken of zijn afgewezen: controleer ze hieronder om een nieuwe banklink te krijgen.",
+        "data": {
+          "private_key": "Privésleutel (PEM-inhoud)",
+          "app_id": "Applicatie-ID (UUID)"
+        }
+      },
+      "reconfigure_auth": {
+        "title": "Vernieuw de toestemming bij je bank",
+        "description": "**[Open deze link om je toestemming bij je bank te vernieuwen]({auth_url})**\n\nPlak de waarde van `code` uit de omleidings-URL hieronder. Tot die tijd blijft de huidige toestemming gewoon werken; sluit je dit venster, dan verandert er niets.\n\nEen link is ongeveer een uur geldig. Geeft de bank een fout, of staat er in het adres op enablebanking.com `error=` in plaats van `code=`? Verstuur dan met een leeg veld voor een nieuwe link.",
+        "data": {
+          "auth_code": "Autorisatiecode"
+        },
+        "data_description": {
+          "auth_code": "Laat leeg en verstuur voor een nieuwe link."
+        }
       }
     },
     "error": {
@@ -62,7 +80,8 @@
     },
     "abort": {
       "already_configured": "Deze banksessie is al geconfigureerd",
-      "reauth_successful": "Opnieuw authenticeren gelukt, er is een nieuwe banksessie actief. Je saldi worden bij de volgende ophaalronde bijgewerkt."
+      "reauth_successful": "Opnieuw authenticeren gelukt, er is een nieuwe banksessie actief. Je saldi worden bij de volgende ophaalronde bijgewerkt.",
+      "reconfigure_successful": "Toestemming vernieuwd, er is een nieuwe banksessie actief. Je saldi worden bij de volgende ophaalronde bijgewerkt."
     }
   },
   "entity": {

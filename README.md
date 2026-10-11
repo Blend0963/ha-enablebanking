@@ -18,7 +18,7 @@ The integration uses **Enable Banking** as the licensed TPP (Third Party Provide
 - Attributes per sensor: IBAN, account name, product, currency, balance type, reference date, bank name, `last_polled_at`, `last_error`, `stale`, `consent_expires_at`, `consent_days_remaining`
 - Scheduled polling at fixed local times (10:00, 14:00, 18:00, 22:00) with per-entry minute jitter > exactly four polls/day, aligned with PSD2's cap
 - **Never-unavailable sensors**: balances are cached to disk and displayed even during rate-limits, network blips, consent expiry, or the first moment after an HA restart before the first poll runs
-- Graceful 180-day consent expiry: proactive 14-day warning, automatic reauth UI when the consent lapses
+- Graceful 180-day consent expiry: proactive 14-day warning, renew early with **Reconfigure**, automatic reauth UI when the consent lapses
 - **Self-renewing API token**: the integration stores your application private key and signs a fresh 23-hour JWT itself, so there is no token to paste and nothing that silently expires
 - Reauth flow that revalidates the existing bank session first, so an expired token is a one-click fix with no bank round-trip
 
@@ -199,13 +199,15 @@ PSD2 limits unattended Account Information consent to **180 days**, after which 
 
 ### What happens when consent expires
 
-- **14 days before expiry**: a `persistent_notification` appears in HA with the bank name and days remaining, prompting you to renew in advance.
+- **14 days before expiry**: a `persistent_notification` appears in HA with the bank name and days remaining, prompting you to renew in advance. It disappears by itself once the consent is renewed.
 - **On expiry** (or if the bank revokes consent early): the next poll receives a session-not-found response. The integration triggers the reauth flow (the standard *"Integration needs attention"* card appears under Notifications) and sets `last_error: "consent_expired"` on the sensors.
 - **Sensors keep showing the last known balance** with `stale: true`. They do not go unavailable. The reauth card does the nagging.
 
 ### Renewing consent
 
-Click the **Reconfigure** button on the integration card (or the notification link), or go to **Settings > Devices & Services > Enable Banking > your bank > Reconfigure**. The reauth flow pre-fills your private key and application ID and, if the bank session really is gone, asks you to complete a fresh bank authorisation (step 4 of the setup flow above).
+**Before it expires** (after the 14-day warning, or whenever you like): go to **Settings > Devices & Services > Enable Banking** (the link in the notification opens it), click the **⋮** menu next to your bank and choose **Reconfigure** (*Herconfigureer* in Dutch). The integration uses your stored private key and application ID and goes straight to a new bank link; complete the bank authorisation (step 4 of the setup flow above) and the entry switches to the new consent. Until you finish, the current consent keeps working.
+
+**After it expired**: the entry appears under *Attention required* (*Aandacht vereist*) at the top of **Settings > Devices & Services**. Its **Reconfigure** button starts the reauth flow, which pre-fills your private key and application ID and, if the bank session really is gone, asks you to complete a fresh bank authorisation.
 
 You do not need to regenerate your application private key unless you revoked it at Enable Banking. The JWT is never your problem: the integration signs and renews it on its own.
 
@@ -217,7 +219,8 @@ You do not need to regenerate your application private key unless you revoked it
 | "Auth code rejected" at step 4 | Copied the wrong query parameter, use only the `code=` value |
 | Bank link lands on `enablebanking.com/?state=...&error=invalid_request` | The link has expired (links are valid for about an hour) or was already used on an earlier attempt that failed at the bank. Submit the form with the field empty to get a new link (during reauth, closing and reopening the dialog also does it) |
 | Entry loads but no sensors appear | The consent granted no accounts. The log says so at WARNING level; check in the Enable Banking dashboard that the account is linked and the app's Account Information service is not restricted |
-| Sensor shows `unavailable` | Consent expired or bank revoked access, use Reconfigure |
+| Sensor shows `unavailable` | Consent expired or bank revoked access, use the Reconfigure button under *Attention required* in Devices & Services |
+| No **Reconfigure** in the **⋮** menu | You are on 0.6.12 or older; renewing before expiry needs 0.6.13 or later |
 | Balance stuck / not updating | Check HA log at `logger: custom_components.enablebanking: debug` |
 
 ## License

@@ -51,6 +51,24 @@
         "data_description": {
           "auth_code": "Leave empty and submit to get a new link."
         }
+      },
+      "reconfigure": {
+        "title": "Renew consent",
+        "description": "To renew the **{aspsp_name}** consent, the integration needs your private key and application ID. The stored ones are missing or were rejected: check them below to get a new bank link.",
+        "data": {
+          "private_key": "Private key (PEM content)",
+          "app_id": "Application ID (UUID)"
+        }
+      },
+      "reconfigure_auth": {
+        "title": "Renew consent at your bank",
+        "description": "**[Open this link to renew your consent at your bank]({auth_url})**\n\nPaste the `code` value from the redirect URL below. Until you do, the current consent keeps working; closing this dialog leaves it untouched.\n\nA link is valid for about an hour. If the bank shows an error, or the address on enablebanking.com has `error=` instead of `code=`, submit with the field empty to get a new link.",
+        "data": {
+          "auth_code": "Authorisation code"
+        },
+        "data_description": {
+          "auth_code": "Leave empty and submit to get a new link."
+        }
       }
     },
     "error": {
@@ -62,7 +80,8 @@
     },
     "abort": {
       "already_configured": "This bank session is already configured",
-      "reauth_successful": "Re-authentication successful, a new bank session is active. Your balances refresh on the next scheduled poll."
+      "reauth_successful": "Re-authentication successful, a new bank session is active. Your balances refresh on the next scheduled poll.",
+      "reconfigure_successful": "Consent renewed, a new bank session is active. Your balances refresh on the next scheduled poll."
     }
   },
   "entity": {

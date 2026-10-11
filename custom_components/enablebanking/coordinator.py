@@ -363,20 +363,28 @@ class EnableBankingCoordinator(DataUpdateCoordinator[EnableBankingData]):
     def _maybe_warn_expiry(self, consent_expires_at: datetime | None) -> None:
         if consent_expires_at is None or self._warned_expiry:
             return
+        notification_id = f"{DOMAIN}_expiry_{self.config_entry.entry_id}"
         days_remaining = (consent_expires_at - dt_util.utcnow()).days
         if days_remaining > CONSENT_WARNING_DAYS:
+            # Renewed (reconfigure or reauth reloads the entry with the new
+            # expiry), so the warning from the old consent no longer applies.
+            persistent_notification.async_dismiss(self.hass, notification_id)
             return
         aspsp_name = self.config_entry.data.get(CONF_ASPSP_NAME, "your bank")
+        # Reconfigure lives in the entry's three-dot menu; there is no button on
+        # the integration card. The link opens the integration page directly.
         persistent_notification.async_create(
             self.hass,
             message=(
                 f"Your {aspsp_name} Enable Banking consent expires in "
-                f"{days_remaining} day(s). Open **Settings > Devices & Services > "
-                f"Enable Banking ({aspsp_name})** and click **Reconfigure** to renew "
-                "before it expires and balances go stale."
+                f"{days_remaining} day(s). Open "
+                f"[Enable Banking](/config/integrations/integration/{DOMAIN}), "
+                f"click the **⋮** menu next to **{self.config_entry.title}** and "
+                "choose **Reconfigure** to renew it at your bank before it expires "
+                "and balances go stale."
             ),
             title="Enable Banking consent expiring soon",
-            notification_id=f"{DOMAIN}_expiry_{self.config_entry.entry_id}",
+            notification_id=notification_id,
         )
         self._warned_expiry = True
 
