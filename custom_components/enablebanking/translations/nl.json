@@ -88,7 +88,24 @@
     "sensor": {
       "balance": {
         "name": "Saldo"
+      },
+      "transactions": {
+        "name": "Transacties"
       }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Categorisation rules",
+        "description": "One rule per line, `KEYWORD = Category`. The keyword is looked for as whole words in the bank label (case and accents ignored). Your rules are checked before the built-in ones. Use a built-in category name to add to it, or any other name to create a new category (it gets its own sensor).\n\nBuilt-in categories: {categories}\n\nExample:\n`EPICERIE DU COIN = Courses`\n`CLUB DE TENNIS = Loisirs et sorties`\n\nTip: the **Dépenses Autre** sensor lists the merchants no rule caught in its `unmatched_merchants` attribute.",
+        "data": {
+          "custom_rules": "Rules"
+        }
+      }
+    },
+    "error": {
+      "invalid_rules": "These lines are not in the `KEYWORD = Category` form: {bad_lines}"
     }
   }
 }

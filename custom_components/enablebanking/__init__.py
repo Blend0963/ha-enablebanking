@@ -17,7 +17,12 @@ from .coordinator import EnableBankingConfigEntry, EnableBankingCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.SELECT,
+    Platform.BUTTON,
+    Platform.NUMBER,
+]
 
 SERVICE_REFRESH = "refresh"
 
@@ -98,6 +103,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: EnableBankingConfigEntry
             entry.entry_id,
             coordinator.last_refresh,
         )
+
+    # Reload when the options (custom categorisation rules) change, so the new
+    # rules apply to every stored transaction and new categories get sensors.
+    # Data updates (e.g. JWT auto-renewal) also fire this listener: ignore them.
+
+    async def _async_options_updated(
+        hass: HomeAssistant, updated: EnableBankingConfigEntry
+    ) -> None:
+        if dict(updated.options) != coordinator.applied_options:
+            await hass.config_entries.async_reload(updated.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     return True
 

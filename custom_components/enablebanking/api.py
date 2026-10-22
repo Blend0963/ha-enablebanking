@@ -14,6 +14,8 @@ Endpoints implemented:
     POST /sessions                        -> exchange auth code for session_id
     GET  /sessions/{session_id}           -> account list and session status
     GET  /accounts/{account_id}/balances  -> balance objects for one account
+    GET  /accounts/{account_id}/details   -> IBAN / name for one account
+    GET  /accounts/{account_id}/transactions -> booked + pending transactions
 
 See https://enablebanking.com/docs/api/reference/ for the full surface.
 """
@@ -23,7 +25,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -47,6 +49,9 @@ _BALANCE_TYPE_PREFERENCE: tuple[str, ...] = (
     "ITBD",  # interim booked
     "OPBD",  # opening booked
 )
+
+# Safety cap on continuation_key pages for one transactions listing.
+_MAX_TRANSACTION_PAGES = 50
 
 
 class EnableBankingClient:
@@ -280,6 +285,49 @@ class EnableBankingClient:
             )
         return data
 
+    async def async_get_account_transactions(
+        self,
+        account_id: str,
+        date_from: date,
+        date_to: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return every transaction of one account booked on or after ``date_from``.
+
+        Follows ``continuation_key`` across pages, up to ``_MAX_TRANSACTION_PAGES``
+        so a misbehaving ASPSP can't loop forever. Each page is one HTTP call
+        but, as far as the ASPSP is concerned, one listing of the account.
+        """
+        params: dict[str, str] = {"date_from": date_from.isoformat()}
+        if date_to is not None:
+            params["date_to"] = date_to.isoformat()
+
+        out: list[dict[str, Any]] = []
+        for page in range(_MAX_TRANSACTION_PAGES):
+            data = await self._request("GET", f"/accounts/{account_id}/transactions", params=params)
+            if not isinstance(data, dict):
+                raise EnableBankingAPIError(
+                    f"Unexpected transactions payload type: {type(data).__name__}"
+                )
+            items = data.get("transactions")
+            if isinstance(items, list):
+                out.extend(item for item in items if isinstance(item, dict))
+            continuation = data.get("continuation_key")
+            if not isinstance(continuation, str) or not continuation:
+                break
+            params["continuation_key"] = continuation
+            _LOGGER.debug(
+                "Transactions for %s: page %d done, following continuation_key",
+                account_id[:8],
+                page + 1,
+            )
+        else:
+            _LOGGER.warning(
+                "Transactions for %s: stopped after %d pages (continuation_key still set)",
+                account_id[:8],
+                _MAX_TRANSACTION_PAGES,
+            )
+        return out
+
     async def async_get_all_balances(
         self,
         fallback: dict[str, AccountBalance] | None = None,
@@ -461,9 +509,17 @@ class EnableBankingClient:
             amount: float | None = None
             if (raw_value := amount_obj.get("amount")) is not None:
                 try:
-                    amount = float(raw_value)
+                    amount = float(str(raw_value).replace(" ", "").replace(",", "."))
                 except (TypeError, ValueError):
                     amount = None
+            # Overdrafts: Enable Banking sends a signed amount ("-123.45").
+            # Some ASPSPs instead send an unsigned amount plus a debit
+            # indicator; honour it so a negative balance never shows positive.
+            indicator = picked.get("credit_debit_indicator") or amount_obj.get(
+                "credit_debit_indicator"
+            )
+            if amount is not None and indicator == "DBIT" and amount > 0:
+                amount = -amount
             if amount is None:
                 _LOGGER.warning("Could not parse amount for %s; picked=%r", uid, picked)
                 continue

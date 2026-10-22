@@ -24,6 +24,28 @@ def account_unique_id(entry_id: str, stable_id: str, key: str) -> str:
     return f"{entry_id}_{token}_{key}"
 
 
+def entry_device_info(coordinator: EnableBankingCoordinator) -> DeviceInfo:
+    """One service device per bank entry, shared by every entity of the entry."""
+    entry = coordinator.config_entry
+    aspsp_name = entry.data.get(CONF_ASPSP_NAME, "Enable Banking")
+    country = entry.data.get(CONF_ASPSP_COUNTRY, "")
+    psu_type = entry.data.get(CONF_PSU_TYPE, "")
+    model_parts = [p for p in (country, psu_type) if p]
+
+    # Put the bank in `manufacturer` so the service-info card reads
+    # "<country · psu_type> / door <Bank>" > that's the info users
+    # actually care about on a balance card. The "data via Enable
+    # Banking" provenance stays visible through the attribution on
+    # each entity and the integration card title.
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=aspsp_name,
+        manufacturer=aspsp_name,
+        model=" · ".join(model_parts) if model_parts else "Account",
+        entry_type=DeviceEntryType.SERVICE,
+    )
+
+
 class EnableBankingEntity(CoordinatorEntity[EnableBankingCoordinator]):
     """Base entity for Enable Banking sensors."""
 
@@ -43,21 +65,21 @@ class EnableBankingEntity(CoordinatorEntity[EnableBankingCoordinator]):
             coordinator.config_entry.entry_id, stable_id, description.key
         )
 
-        entry = coordinator.config_entry
-        aspsp_name = entry.data.get(CONF_ASPSP_NAME, "Enable Banking")
-        country = entry.data.get(CONF_ASPSP_COUNTRY, "")
-        psu_type = entry.data.get(CONF_PSU_TYPE, "")
-        model_parts = [p for p in (country, psu_type) if p]
+        self._attr_device_info = entry_device_info(coordinator)
 
-        # Put the bank in `manufacturer` so the service-info card reads
-        # "<country · psu_type> / door <Bank>" > that's the info users
-        # actually care about on a balance card. The "data via Enable
-        # Banking" provenance stays visible through the attribution on
-        # each entity and the integration card title.
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=aspsp_name,
-            manufacturer=aspsp_name,
-            model=" · ".join(model_parts) if model_parts else "Account",
-            entry_type=DeviceEntryType.SERVICE,
-        )
+
+class EnableBankingEntryEntity(CoordinatorEntity[EnableBankingCoordinator]):
+    """Base for entities that aggregate every account of one bank entry."""
+
+    _attr_has_entity_name = True
+    _attr_attribution = "Data via Enable Banking AIS (PSD2)"
+
+    def __init__(self, coordinator: EnableBankingCoordinator, key: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{key}"
+        self._attr_device_info = entry_device_info(coordinator)
+
+    @property
+    def available(self) -> bool:
+        # Built from stored transactions: a failed poll doesn't make it wrong.
+        return True

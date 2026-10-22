@@ -1,0 +1,930 @@
+# Tableau de bord "Ma banque" pour l'intégration Enable Banking (0.10.0+).
+# Généré par scripts/generate_dashboard.py.
+#
+# Cartes nécessaires (HACS > Dashboard) : Mushroom, ApexCharts Card.
+# Intégration nécessaire pour le détail d'une catégorie au clic : Browser Mod.
+#
+# Remplace les 4 entités ci-dessous si elles sont encore en majuscules :
+#   sensor.SOLDE_BNP / sensor.SOLDE_HELLO               -> capteurs de solde (IBAN)
+#   sensor.TRANSACTIONS_BNP / sensor.TRANSACTIONS_HELLO -> capteurs "Transactions …"
+#
+title: Ma banque
+views:
+- title: Ma banque
+  path: banque
+  icon: mdi:bank
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Mes comptes
+      icon: mdi:wallet-outline
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_solde_total
+      primary: '{% set t = states(entity)|float(0) %}{{ ''{:,.2f}''.format(t).replace('','', '' '').replace(''.'', '','') }} €'
+      secondary: '{% set n = state_attr(entity, ''overdrawn_accounts'')|int(0) %}Solde total · {{ ''à découvert'' if states(entity)|float(0) < 0 else ''créditeur'' }}{% if n %} · {{ n }} compte{{ ''s'' if n > 1 }} à découvert{% endif %}'
+      icon: '{{ ''mdi:alert-circle-outline'' if states(entity)|float(0) < 0 else ''mdi:piggy-bank-outline'' }}'
+      icon_color: '{{ ''red'' if states(entity)|float(0) < 0 else ''green'' }}'
+      tap_action:
+        action: more-info
+      layout: horizontal
+      fill_container: true
+      grid_options:
+        columns: full
+    - type: custom:mushroom-template-card
+      entity: sensor.SOLDE_BNP
+      primary: BNP Paribas
+      secondary: '{% set b = states(''sensor.SOLDE_BNP'')|float(0) %}{{ ''%.2f''|format(b)|replace(''.'', '','') }} €{% if b < 0 %} · À DÉCOUVERT{% endif %} · {{ state_attr(''sensor.TRANSACTIONS_BNP'', ''month_spent'')|float(0)|round(0)|int }} € ce mois'
+      icon: mdi:bank
+      icon_color: '{{ ''red'' if states(''sensor.SOLDE_BNP'')|float(0) < 0 else ''green'' }}'
+      multiline_secondary: true
+      tap_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.SOLDE_HELLO
+      primary: Hello bank!
+      secondary: '{% set b = states(''sensor.SOLDE_HELLO'')|float(0) %}{{ ''%.2f''|format(b)|replace(''.'', '','') }} €{% if b < 0 %} · À DÉCOUVERT{% endif %} · {{ state_attr(''sensor.TRANSACTIONS_HELLO'', ''month_spent'')|float(0)|round(0)|int }} € ce mois'
+      icon: mdi:bank-outline
+      icon_color: '{{ ''red'' if states(''sensor.SOLDE_HELLO'')|float(0) < 0 else ''light-blue'' }}'
+      multiline_secondary: true
+      tap_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:apexcharts-card
+      header:
+        show: true
+        title: Évolution des soldes (30 jours)
+        show_states: false
+      graph_span: 30d
+      apex_config:
+        chart:
+          height: 230
+        legend:
+          position: top
+        stroke:
+          curve: smooth
+        fill:
+          type: gradient
+          gradient:
+            opacityFrom: 0.35
+            opacityTo: 0.02
+        yaxis:
+          labels:
+            formatter: EVAL:function(v){return Math.round(v)+' €'}
+        tooltip:
+          y:
+            formatter: EVAL:function(v){return v.toFixed(2).replace('.',',')+' €'}
+        annotations:
+          yaxis:
+          - y: 0
+            borderColor: '#E5484D'
+            strokeDashArray: 4
+            label:
+              text: Découvert
+              position: left
+              style:
+                color: '#fff'
+                background: '#E5484D'
+      series:
+      - entity: sensor.SOLDE_BNP
+        name: BNP Paribas
+        color: '#00915A'
+        type: area
+        stroke_width: 3
+        group_by:
+          func: last
+          duration: 1d
+      - entity: sensor.SOLDE_HELLO
+        name: Hello bank!
+        color: '#2D9CDB'
+        type: area
+        stroke_width: 3
+        group_by:
+          func: last
+          duration: 1d
+  - type: grid
+    cards:
+    - type: heading
+      heading: Ce mois-ci
+      icon: mdi:calendar-month-outline
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_totales_du_mois
+      primary: '{{ states(entity)|float(0)|round(0)|int }} €'
+      secondary: '{% set n = states(entity)|float(0) %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}Dépenses{% if p > 0 %} · {{ ''%+d''|format(((n - p) / p * 100)|round(0)|int) }} % vs mois dernier{% endif %}'
+      icon: mdi:arrow-top-right-thin-circle-outline
+      icon_color: red
+      tap_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_revenus_du_mois
+      primary: '{{ states(entity)|float(0)|round(0)|int }} €'
+      secondary: Revenus
+      icon: mdi:arrow-bottom-left-thin-circle-outline
+      icon_color: green
+      tap_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      primary: '{% set s = states(''sensor.bnp_paribas_revenus_du_mois'')|float(0) - states(''sensor.bnp_paribas_depenses_totales_du_mois'')|float(0) %}{{ ''%+d''|format(s|round(0)|int) }} €'
+      secondary: Épargne du mois (revenus − dépenses)
+      icon: mdi:scale-balance
+      icon_color: '{% set s = states(''sensor.bnp_paribas_revenus_du_mois'')|float(0) - states(''sensor.bnp_paribas_depenses_totales_du_mois'')|float(0) %}{{ ''green'' if s >= 0 else ''orange'' }}'
+      grid_options:
+        columns: full
+    - type: custom:apexcharts-card
+      chart_type: donut
+      header:
+        show: true
+        title: Répartition des dépenses
+        show_states: false
+      apex_config:
+        chart:
+          height: 320
+        legend:
+          position: bottom
+          fontSize: 12px
+        dataLabels:
+          enabled: false
+        plotOptions:
+          pie:
+            donut:
+              size: 70%
+              labels:
+                show: true
+                total:
+                  show: true
+                  label: Total
+                  formatter: EVAL:function(w){return Math.round(w.globals.seriesTotals.reduce((a,b)=>a+b,0))+' €'}
+                value:
+                  formatter: EVAL:function(v){return Math.round(v)+' €'}
+      all_series_config:
+        transform: return Math.max(Number(x) || 0, 0);
+      series:
+      - entity: sensor.bnp_paribas_depenses_courses
+        name: Courses
+        color: '#F5A524'
+      - entity: sensor.bnp_paribas_depenses_restaurants_et_cafes
+        name: Restaurants
+        color: '#E5484D'
+      - entity: sensor.bnp_paribas_depenses_transport
+        name: Transport
+        color: '#3E63DD'
+      - entity: sensor.bnp_paribas_depenses_logement_et_energie
+        name: Logement
+        color: '#8E4EC6'
+      - entity: sensor.bnp_paribas_depenses_abonnements_et_tech
+        name: Abonnements
+        color: '#00A2C7'
+      - entity: sensor.bnp_paribas_depenses_shopping
+        name: Shopping
+        color: '#D6409F'
+      - entity: sensor.bnp_paribas_depenses_sante
+        name: Santé
+        color: '#30A46C'
+      - entity: sensor.bnp_paribas_depenses_loisirs_et_sorties
+        name: Loisirs
+        color: '#F76B15'
+      - entity: sensor.bnp_paribas_depenses_voyages
+        name: Voyages
+        color: '#12A594'
+      - entity: sensor.bnp_paribas_depenses_impots_et_administration
+        name: Impôts
+        color: '#6E56CF'
+      - entity: sensor.bnp_paribas_depenses_especes
+        name: Espèces
+        color: '#A18072'
+      - entity: sensor.bnp_paribas_depenses_frais_bancaires
+        name: Frais bancaires
+        color: '#8D8D8D'
+      - entity: sensor.bnp_paribas_depenses_virements_emis
+        name: Virements émis
+        color: '#5B5BD6'
+      - entity: sensor.bnp_paribas_depenses_autre
+        name: Autre
+        color: '#B4B4B4'
+    - type: custom:apexcharts-card
+      header:
+        show: true
+        title: Dépenses cumulées par compte
+        show_states: false
+      graph_span: 31d
+      span:
+        start: month
+      apex_config:
+        chart:
+          height: 220
+        legend:
+          position: top
+        yaxis:
+          labels:
+            formatter: EVAL:function(v){return Math.round(v)+' €'}
+      series:
+      - entity: sensor.TRANSACTIONS_BNP
+        attribute: month_spent
+        name: BNP Paribas
+        color: '#00915A'
+        type: line
+        curve: stepline
+        stroke_width: 3
+      - entity: sensor.TRANSACTIONS_HELLO
+        attribute: month_spent
+        name: Hello bank!
+        color: '#2D9CDB'
+        type: line
+        curve: stepline
+        stroke_width: 3
+  - type: grid
+    cards:
+    - type: heading
+      heading: Catégories
+      icon: mdi:shape-outline
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_courses
+      primary: Courses
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:cart
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''amber'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Courses
+            - service: browser_mod.popup
+              data:
+                title: Courses
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: &id001
+                    - type: select-options
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_restaurants_et_cafes
+      primary: Restaurants et cafés
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:silverware-fork-knife
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''red'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Restaurants et cafés
+            - service: browser_mod.popup
+              data:
+                title: Restaurants et cafés
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_transport
+      primary: Transport
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:car
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''indigo'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Transport
+            - service: browser_mod.popup
+              data:
+                title: Transport
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_shopping
+      primary: Shopping
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:shopping
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''pink'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Shopping
+            - service: browser_mod.popup
+              data:
+                title: Shopping
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_abonnements_et_tech
+      primary: Abonnements et tech
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:repeat
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''cyan'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Abonnements et tech
+            - service: browser_mod.popup
+              data:
+                title: Abonnements et tech
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_loisirs_et_sorties
+      primary: Loisirs et sorties
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:ticket
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''deep-orange'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Loisirs et sorties
+            - service: browser_mod.popup
+              data:
+                title: Loisirs et sorties
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_logement_et_energie
+      primary: Logement et énergie
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:home-lightning-bolt
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''purple'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Logement et énergie
+            - service: browser_mod.popup
+              data:
+                title: Logement et énergie
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_sante
+      primary: Santé
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:medical-bag
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''green'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Santé
+            - service: browser_mod.popup
+              data:
+                title: Santé
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_depenses_autre
+      primary: Autre
+      secondary: '{% set n = states(entity)|float(0) %}{% set b = state_attr(entity, ''budget'') %}{% set p = state_attr(entity, ''previous_month'')|float(0) %}{{ n|round(0)|int }} €{% if b %} / {{ b|round(0)|int }} €{% if n > b %} · dépassé{% endif %}{% elif p > 0 %} · {{ p|round(0)|int }} € le mois dernier{% endif %}'
+      icon: mdi:help-circle-outline
+      icon_color: '{% set b = state_attr(entity, ''budget'') %}{{ ''red'' if b and states(entity)|float(0) > b else ''grey'' }}'
+      badge_icon: '{% set b = state_attr(entity, ''budget'') %}{{ ''mdi:alert'' if b and states(entity)|float(0) > b else '''' }}'
+      badge_color: red
+      tap_action:
+        action: fire-dom-event
+        browser_mod:
+          service: browser_mod.sequence
+          data:
+            sequence:
+            - service: select.select_option
+              data:
+                entity_id: select.bnp_paribas_filtre_des_operations
+                option: Autre
+            - service: browser_mod.popup
+              data:
+                title: Autre
+                size: wide
+                content:
+                  type: vertical-stack
+                  cards:
+                  - type: tile
+                    entity: select.bnp_paribas_periode_des_operations
+                    name: Période
+                    features: *id001
+                    features_position: inline
+                  - type: markdown
+                    content: |-
+                      {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+                      {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+                      {% set ops = state_attr(e, 'operations') or [] %}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+                      {% set ns = namespace(day='') %}
+                      {% for t in ops %}
+                      {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+                      #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+                      {% endif %}
+                      <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+                      <sub>{{ t.label }}</sub>
+                      {% endfor %}
+      hold_action:
+        action: more-info
+      grid_options:
+        columns: 6
+    - type: custom:apexcharts-card
+      header:
+        show: true
+        title: Dépenses et revenus par mois
+        show_states: false
+      graph_span: 365d
+      span:
+        end: month
+      apex_config:
+        chart:
+          height: 240
+        legend:
+          position: top
+        plotOptions:
+          bar:
+            borderRadius: 6
+            columnWidth: 55%
+        yaxis:
+          labels:
+            formatter: EVAL:function(v){return Math.round(v)+' €'}
+        xaxis:
+          labels:
+            format: MMM
+      series:
+      - entity: sensor.bnp_paribas_depenses_totales_du_mois
+        name: Dépenses
+        color: '#E5484D'
+        type: column
+        statistics:
+          type: state
+          period: month
+          align: start
+      - entity: sensor.bnp_paribas_revenus_du_mois
+        name: Revenus
+        color: '#30A46C'
+        type: column
+        statistics:
+          type: state
+          period: month
+          align: start
+  - type: grid
+    cards:
+    - type: heading
+      heading: Budgets du mois
+      icon: mdi:target
+    - type: markdown
+      content: |-
+        {% set rows = state_attr('sensor.bnp_paribas_budgets_depasses', 'budgets') or [] %}
+        {% if not rows %}
+        *Aucun budget défini. Renseigne un montant ci-dessous (0 = pas de budget).*
+        {% else %}
+        | Catégorie | | Dépensé |
+        |:--|:--|--:|
+        {% for r in rows %}{% set n = [((r.used_pct|int) / 10)|round(0)|int, 10]|min %}| {{ '🔴' if r.over else ('🟠' if r.used_pct >= 80 else '🟢') }} {{ r.category }} | {{ '▰' * n }}{{ '▱' * (10 - n) }} {{ r.used_pct }} % | {{ r.spent|round(0)|int }} / {{ r.budget|round(0)|int }} € |
+        {% endfor %}
+        {% endif %}
+    - type: entities
+      title: Définir les budgets
+      show_header_toggle: false
+      state_color: false
+      entities:
+      - entity: number.bnp_paribas_budget_courses
+        name: Courses
+      - entity: number.bnp_paribas_budget_restaurants_et_cafes
+        name: Restaurants et cafés
+      - entity: number.bnp_paribas_budget_transport
+        name: Transport
+      - entity: number.bnp_paribas_budget_logement_et_energie
+        name: Logement et énergie
+      - entity: number.bnp_paribas_budget_abonnements_et_tech
+        name: Abonnements et tech
+      - entity: number.bnp_paribas_budget_shopping
+        name: Shopping
+      - entity: number.bnp_paribas_budget_sante
+        name: Santé
+      - entity: number.bnp_paribas_budget_loisirs_et_sorties
+        name: Loisirs et sorties
+      - entity: number.bnp_paribas_budget_voyages
+        name: Voyages
+      - entity: number.bnp_paribas_budget_impots_et_administration
+        name: Impôts et administration
+      - entity: number.bnp_paribas_budget_especes
+        name: Espèces
+      - entity: number.bnp_paribas_budget_frais_bancaires
+        name: Frais bancaires
+      - entity: number.bnp_paribas_budget_virements_emis
+        name: Virements émis
+      - entity: number.bnp_paribas_budget_autre
+        name: Autre
+  - type: grid
+    cards:
+    - type: heading
+      heading: Par compte
+      icon: mdi:compare-horizontal
+    - type: markdown
+      content: |-
+        {% for label, ent, color in [('BNP Paribas', 'sensor.TRANSACTIONS_BNP', '🟢'), ('Hello bank!', 'sensor.TRANSACTIONS_HELLO', '🔵')] %}
+        {% set spent = state_attr(ent, 'month_spent')|float(0) %}
+        {% set cats = state_attr(ent, 'by_category') or {} %}
+        ### {{ color }} {{ label }}
+
+        **{{ spent|round(0)|int }} €** dépensés · **{{ state_attr(ent, 'month_received')|float(0)|round(0)|int }} €** reçus
+
+        | Catégorie | | Montant |
+        |:--|:--|--:|
+        {% for name, value in cats.items() %}{% set pct = (value / spent * 100) if spent > 0 else 0 %}| {{ name }} | {{ '▰' * ((pct / 10)|round(0)|int) }}{{ '▱' * (10 - (pct / 10)|round(0)|int) }} | {{ value|round(0)|int }} € |
+        {% endfor %}
+
+        {% endfor %}
+    - type: heading
+      heading: Dernières opérations
+      icon: mdi:format-list-bulleted
+    - type: markdown
+      content: |-
+        {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+        | | Opération | Montant |
+        |:--|:--|--:|
+        {% for t in (state_attr('sensor.bnp_paribas_depenses_totales_du_mois', 'recent_transactions') or [])[:15] %}| <ha-icon icon="{{ t.icon }}"></ha-icon> | **{{ t.merchant[:28]|trim }}**<br><sub>{% if t.date %}{{ t.date[8:10] }}/{{ t.date[5:7] }} · {% endif %}{{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · en attente{% endif %}</sub> | {{ '%+.2f'|format(t.amount)|replace('.', ',') }} € |
+        {% endfor %}
+- title: Opérations
+  path: operations
+  icon: mdi:receipt-text-outline
+  type: sections
+  max_columns: 2
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Opération
+      icon: mdi:magnify
+    - type: tile
+      entity: select.bnp_paribas_filtre_des_operations
+      name: Catégorie
+      features:
+      - type: select-options
+      grid_options:
+        columns: 6
+    - type: tile
+      entity: select.bnp_paribas_periode_des_operations
+      name: Période
+      features: *id001
+      features_position: bottom
+      grid_options:
+        columns: 6
+    - type: markdown
+      content: |-
+        {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+        {% set a = state_attr(e, 'amount') %}
+        {% if a is none %}
+        *Aucune opération pour ce filtre.*
+        {% else %}
+        {% set d = state_attr(e, 'date') or '' %}
+        {% set bd = (state_attr(e, 'detail') or {}).get('booking_date') or '' %}
+        <center>
+
+        <ha-icon icon="{{ (state_attr(e, 'detail') or {}).get('icon', 'mdi:receipt') }}"></ha-icon>
+
+        ## {{ '%+.2f'|format(a)|replace('.', ',') }} €
+        **{{ states(e) }}**
+
+        {{ state_attr(e, 'category_name') }} · {{ 'BNP Paribas' if state_attr(e, 'account') == state_attr('sensor.SOLDE_BNP', 'iban') else 'Hello bank!' }}
+
+        </center>
+
+        | | |
+        |:--|--:|
+        | Date d'achat | {{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }} |
+        | Date de comptabilisation | {{ bd[8:10] }}/{{ bd[5:7] }}/{{ bd[0:4] }} |
+        | Statut | {{ 'En attente' if state_attr(e, 'pending') else 'Comptabilisée' }} |
+        | Position | {{ state_attr(e, 'position') }} / {{ state_attr(e, 'total') }} |
+
+        **Libellé exact**
+        ```
+        {{ state_attr(e, 'label') }}
+        ```
+        {% endif %}
+      grid_options:
+        columns: full
+    - type: custom:mushroom-template-card
+      primary: Plus récente
+      icon: mdi:chevron-left
+      icon_color: blue
+      layout: vertical
+      tap_action:
+        action: perform-action
+        perform_action: button.press
+        target:
+          entity_id: button.bnp_paribas_operation_precedente
+      grid_options:
+        columns: 6
+    - type: custom:mushroom-template-card
+      primary: Plus ancienne
+      icon: mdi:chevron-right
+      icon_color: blue
+      layout: vertical
+      tap_action:
+        action: perform-action
+        perform_action: button.press
+        target:
+          entity_id: button.bnp_paribas_operation_suivante
+      grid_options:
+        columns: 6
+    - type: tile
+      entity: select.bnp_paribas_classer_l_operation
+      name: Classer ce marchand dans…
+      icon: mdi:tag-arrow-right-outline
+      features:
+      - type: select-options
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: Liste
+      icon: mdi:format-list-bulleted
+    - type: markdown
+      content: |-
+        {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
+        {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+        {% set ops = state_attr(e, 'operations') or [] %}
+        **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+        <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
+        {% set ns = namespace(day='') %}
+        {% for t in ops %}
+        {% if t.date != ns.day %}{% set ns.day = t.date %}
+
+        #### {{ (t.date or '')[8:10] }}/{{ (t.date or '')[5:7] }}/{{ (t.date or '')[0:4] }}
+        {% endif %}
+        <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
+        <sub>{{ t.label }}</sub>
+        {% endfor %}

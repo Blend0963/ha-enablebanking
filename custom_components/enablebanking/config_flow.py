@@ -6,7 +6,8 @@ import hashlib
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     SelectOptionDict,
@@ -27,12 +28,14 @@ except ImportError:
     import voluptuous as vol  # type: ignore[no-redef]
 
 from .api import EnableBankingClient
+from .categorize import DEFAULT_CATEGORIES, parse_user_rules
 from .const import (
     CONF_APP_ID,
     CONF_ASPSP_COUNTRY,
     CONF_ASPSP_NAME,
     CONF_AUTH_CODE,
     CONF_CONSENT_EXPIRES_AT,
+    CONF_CUSTOM_RULES,
     CONF_JWT,
     CONF_PRIVATE_KEY,
     CONF_PSU_TYPE,
@@ -56,6 +59,12 @@ class EnableBankingConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Enable Banking."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> EnableBankingOptionsFlow:
+        """Options: the user's own categorisation rules."""
+        return EnableBankingOptionsFlow()
 
     def __init__(self) -> None:
         self._jwt: str = ""
@@ -622,6 +631,42 @@ _COUNTRY_NAMES: dict[str, str] = {
     "SI": "Slovenia",
     "SK": "Slovakia",
 }
+
+
+class EnableBankingOptionsFlow(OptionsFlow):
+    """Edit the custom categorisation rules (``KEYWORD = Category`` per line)."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        current: str = self.config_entry.options.get(CONF_CUSTOM_RULES, "")
+        bad_lines = ""
+        if user_input is not None:
+            current = user_input.get(CONF_CUSTOM_RULES, "") or ""
+            _rules, bad = parse_user_rules(current)
+            if bad:
+                errors[CONF_CUSTOM_RULES] = "invalid_rules"
+                bad_lines = "; ".join(bad)
+            else:
+                return self.async_create_entry(
+                    data={**self.config_entry.options, CONF_CUSTOM_RULES: current}
+                )
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_CUSTOM_RULES, description={"suggested_value": current}
+                ): TextSelector(TextSelectorConfig(multiline=True)),
+            }
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={
+                "categories": ", ".join(name for name, _icon in DEFAULT_CATEGORIES.values()),
+                "bad_lines": bad_lines,
+            },
+        )
 
 
 def _country_name(code: str) -> str:

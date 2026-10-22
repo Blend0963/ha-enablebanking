@@ -110,6 +110,56 @@ Select ASPSP **Revolut** and account type **Business**. Enable Banking uses a si
 | `consent_expires_at` | ISO timestamp when the PSD2 consent expires |
 | `consent_days_remaining` | Integer days until expiry |
 
+### Transactions (per account)
+
+| Property | Value |
+|----------|-------|
+| State | Number of transactions dated in the current month |
+
+**Attributes:** `month_spent`, `month_received`, `stored_transactions`, `last_fetched_at`, `last_error`, `recent_transactions` (10 most recent: date, signed amount, label, counterparty, status, bank transaction code, merchant category code), `field_coverage`.
+
+Transactions are fetched in the same scheduled polls as balances, after them. The first fetch goes back 90 days; later ones restart 7 days before the newest booked transaction. They are stored in `.storage/enablebanking.<entry_id>.transactions` (400 days kept).
+
+To see exactly what your bank sends, use **Settings > Devices & services > Enable Banking > ⋮ > Download diagnostics**: it lists per account which fields are filled and up to 30 raw transactions, with IBANs and credentials redacted.
+
+### Spending categories (per bank entry)
+
+French banks send no merchant category code, so transactions are sorted from their label: your own rules first, then internal transfers, cash, fees and income, then built-in French merchant keywords, then "Autre".
+
+Sensors (all accounts of the entry together, reset on the 1st): `Dépenses <category>` for each category, `Revenus du mois`, `Virements internes du mois`, `Dépenses totales du mois` (with `by_category`). Each has `previous_month` and the month's transactions as attributes.
+
+Add your own rules in **Settings > Devices & services > Enable Banking > Configure**, one per line:
+
+```
+EPICERIE DU COIN = Courses
+CLUB DE TENNIS = Loisirs et sorties
+```
+
+They apply at once to every stored transaction. A category name that doesn't exist yet creates a new sensor. The `unmatched_merchants` attribute of **Dépenses Autre** lists what no rule caught.
+
+### Budgets
+
+Each spending category has a **Budget <category>** number (euros per month, 0 = none). The category sensor then carries `budget`, `budget_remaining`, `budget_used_pct` and `over_budget`, and **Budgets dépassés** counts the categories over budget, for example:
+
+```yaml
+automation:
+  - alias: Budget dépassé
+    triggers:
+      - trigger: state
+        entity_id: sensor.bnp_paribas_budgets_depasses
+    conditions: "{{ trigger.to_state.state | int(0) > trigger.from_state.state | int(0) }}"
+    actions:
+      - action: notify.notify
+        data:
+          message: "Budget dépassé : {{ state_attr('sensor.bnp_paribas_budgets_depasses', 'over') | join(', ') }}"
+```
+
+### Transaction browser
+
+Local only, no bank call: **Filtre des opérations** (category), **Période des opérations**, **Opération précédente / suivante** buttons, and **Opération sélectionnée** with every detail including the exact bank label. **Classer l'opération** moves the selected merchant to another category and remembers it as a rule.
+
+An example dashboard using all of this is in `examples/dashboard-banque.yaml` (Mushroom, ApexCharts Card and Browser Mod).
+
 ## Polling schedule
 
 The integration polls at four fixed local times per day:
