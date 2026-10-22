@@ -3,6 +3,14 @@
 Releases up to and including 0.6.11 are described in the
 [GitHub release notes](https://github.com/SurfHost/ha-enablebanking/releases).
 
+## [0.10.1] - 2026-10-22
+
+### Added
+- **Account names** in the Configure dialog: one field per account (shown with its IBAN end and current balance). The name is used in every transaction list, the transaction browser and the "Solde total" account list. Without a name, an account shows as "Compte …1234" instead of the holder's name, which two accounts of the same person share.
+
+### Fixed
+- Example dashboard: transactions no longer all show as coming from the same account; they use the account name from the integration instead of comparing against a placeholder entity.
+
 ## [0.10.0] - 2026-10-22
 
 ### Added

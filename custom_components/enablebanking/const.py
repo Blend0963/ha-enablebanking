@@ -18,6 +18,8 @@ CONF_AUTH_CODE: Final = "auth_code"
 CONF_CONSENT_EXPIRES_AT: Final = "consent_expires_at"
 # Options: the user's own categorisation rules, one "KEYWORD = Category" per line.
 CONF_CUSTOM_RULES: Final = "custom_rules"
+# Options: display name per account, {stable_id: "BNP"}.
+CONF_ACCOUNT_NAMES: Final = "account_names"
 
 # Transaction browser periods: key -> label shown in the select.
 BROWSE_PERIODS: Final = {

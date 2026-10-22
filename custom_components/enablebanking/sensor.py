@@ -592,7 +592,8 @@ class EnableBankingTotalBalanceSensor(EnableBankingEntryEntity, SensorEntity):
             "overdrawn_accounts": sum(1 for a in accounts if a.balance < 0),
             "accounts": [
                 {
-                    "name": a.name,
+                    "name": self.coordinator.account_label(a.stable_id),
+                    "holder": a.name,
                     "iban": a.iban,
                     "balance": round(a.balance, 2),
                     "overdrawn": a.balance < 0,

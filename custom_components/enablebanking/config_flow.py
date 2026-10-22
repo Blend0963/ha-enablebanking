@@ -30,6 +30,7 @@ except ImportError:
 from .api import EnableBankingClient
 from .categorize import DEFAULT_CATEGORIES, parse_user_rules
 from .const import (
+    CONF_ACCOUNT_NAMES,
     CONF_APP_ID,
     CONF_ASPSP_COUNTRY,
     CONF_ASPSP_NAME,
@@ -634,30 +635,58 @@ _COUNTRY_NAMES: dict[str, str] = {
 
 
 class EnableBankingOptionsFlow(OptionsFlow):
-    """Edit the custom categorisation rules (``KEYWORD = Category`` per line)."""
+    """Account names, then custom categorisation rules (``KEYWORD = Category``)."""
+
+    def _account_fields(self) -> dict[str, str]:
+        """Form label -> stable_id, one per account (label shows IBAN end and balance)."""
+        coordinator = getattr(self.config_entry, "runtime_data", None)
+        if coordinator is None:
+            return {}
+        fields: dict[str, str] = {}
+        for stable_id in sorted(coordinator.cached_stable_ids()):
+            account = coordinator.cached_account(stable_id)
+            if account is None:
+                continue
+            end = f"…{account.iban[-4:]}" if account.iban else account.name
+            balance = f"{account.balance:.2f}".replace(".", ",")
+            fields[f"Nom du compte {end} (solde {balance} €)"] = stable_id
+        return fields
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         current: str = self.config_entry.options.get(CONF_CUSTOM_RULES, "")
+        names: dict[str, str] = dict(self.config_entry.options.get(CONF_ACCOUNT_NAMES) or {})
+        account_fields = self._account_fields()
         bad_lines = ""
         if user_input is not None:
             current = user_input.get(CONF_CUSTOM_RULES, "") or ""
+            for label, stable_id in account_fields.items():
+                value = str(user_input.get(label, "") or "").strip()
+                if value:
+                    names[stable_id] = value
+                else:
+                    names.pop(stable_id, None)
             _rules, bad = parse_user_rules(current)
             if bad:
                 errors[CONF_CUSTOM_RULES] = "invalid_rules"
                 bad_lines = "; ".join(bad)
             else:
                 return self.async_create_entry(
-                    data={**self.config_entry.options, CONF_CUSTOM_RULES: current}
+                    data={
+                        **self.config_entry.options,
+                        CONF_CUSTOM_RULES: current,
+                        CONF_ACCOUNT_NAMES: names,
+                    }
                 )
 
-        schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_CUSTOM_RULES, description={"suggested_value": current}
-                ): TextSelector(TextSelectorConfig(multiline=True)),
-            }
+        fields: dict[Any, Any] = {
+            vol.Optional(label, description={"suggested_value": names.get(stable_id, "")}): str
+            for label, stable_id in account_fields.items()
+        }
+        fields[vol.Optional(CONF_CUSTOM_RULES, description={"suggested_value": current})] = (
+            TextSelector(TextSelectorConfig(multiline=True))
         )
+        schema = vol.Schema(fields)
         return self.async_show_form(
             step_id="init",
             data_schema=schema,

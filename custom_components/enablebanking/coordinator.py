@@ -54,6 +54,7 @@ from .categorize import (
     previous_month_start,
 )
 from .const import (
+    CONF_ACCOUNT_NAMES,
     CONF_APP_ID,
     CONF_ASPSP_NAME,
     CONF_CONSENT_EXPIRES_AT,
@@ -301,13 +302,28 @@ class EnableBankingCoordinator(DataUpdateCoordinator[EnableBankingData]):
         self.categorizer = Categorizer(user_rules=rules, owner_names=sorted(owners))
         items: list[CategorizedTransaction] = []
         for stable_id, txs in self._transactions.items():
-            account = self._cached.get(stable_id)
-            account_label = (account.iban or account.name) if account else ""
+            account_label = self.account_label(stable_id)
             items.extend(
                 self.categorizer.categorize(tx, account_label, stable_id) for tx in txs.values()
             )
         items.sort(key=lambda i: i.day or date.min, reverse=True)
         self.categorized = items
+
+    def account_label(self, stable_id: str) -> str:
+        """The name the user gave this account, else a short IBAN-based label.
+
+        Two accounts of the same person usually share the holder name, so the
+        bank's name alone can't tell them apart.
+        """
+        names = self.config_entry.options.get(CONF_ACCOUNT_NAMES) or {}
+        if isinstance(names, dict) and (custom := names.get(stable_id)):
+            return str(custom)
+        account = self._cached.get(stable_id)
+        if account is None:
+            return ""
+        if account.iban:
+            return f"Compte …{account.iban[-4:]}"
+        return account.name
 
     def browse_items(self) -> list[CategorizedTransaction]:
         """Transactions matching the browser's category and period, newest first."""

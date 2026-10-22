@@ -96,7 +96,6 @@ def build(a: argparse.Namespace) -> dict[str, Any]:
             "🔵",
         ),
     ]
-    first_iban = f"state_attr('{a.bank_balance}', 'iban')"
 
     def money(expr: str) -> str:
         return f"{{{{ '%.2f'|format({expr})|replace('.', ',') }}}} €"
@@ -104,7 +103,6 @@ def build(a: argparse.Namespace) -> dict[str, Any]:
     # ------------------------------------------------------------ lists ---
     ops_list = Literal(
         f"""{{% set e = '{ent["browse"]}' %}}
-{{% set bnp = {first_iban} %}}
 {{% set ops = state_attr(e, 'operations') or [] %}}
 **{{{{ state_attr(e, 'total') or 0 }}}} opérations** · {{{{ state_attr(e, 'filter') }}}} · {{{{ state_attr(e, 'period') }}}}
 <br>Sorties **{{{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }}}} €** · Entrées **{{{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }}}} €**{{% if (state_attr(e, 'total') or 0) > ops|length %}} · {{{{ ops|length }}}} plus récentes affichées{{% endif %}}
@@ -114,7 +112,7 @@ def build(a: argparse.Namespace) -> dict[str, Any]:
 
 #### {{{{ (t.date or '')[8:10] }}}}/{{{{ (t.date or '')[5:7] }}}}/{{{{ (t.date or '')[0:4] }}}}
 {{% endif %}}
-<ha-icon icon="{{{{ t.icon }}}}"></ha-icon> **{{{{ t.merchant[:30]|trim }}}}** · **{{{{ '%+.2f'|format(t.amount)|replace('.', ',') }}}} €** · {{{{ t.category_name }}}} · {{{{ 'BNP' if t.account == bnp else 'Hello' }}}}{{% if t.pending %}} · *en attente*{{% endif %}}<br>
+<ha-icon icon="{{{{ t.icon }}}}"></ha-icon> **{{{{ t.merchant[:30]|trim }}}}** · **{{{{ '%+.2f'|format(t.amount)|replace('.', ',') }}}} €** · {{{{ t.category_name }}}} · {{{{ t.account }}}}{{% if t.pending %}} · *en attente*{{% endif %}}<br>
 <sub>{{{{ t.label }}}}</sub>
 {{% endfor %}}"""
     )
@@ -456,10 +454,9 @@ Dépensé **{{{{ ts|round(0)|int }}}} €** sur {{{{ tb|round(0)|int }}}} €{{%
 
     def recent(count: int) -> Literal:
         return Literal(
-            f"""{{% set bnp = {first_iban} %}}
-| | Opération | Montant |
+            f"""| | Opération | Montant |
 |:--|:--|--:|
-{{% for t in (state_attr('{ent["spent"]}', 'recent_transactions') or [])[:{count}] %}}| <ha-icon icon="{{{{ t.icon }}}}"></ha-icon> | **{{{{ t.merchant[:28]|trim }}}}**<br><sub>{{% if t.date %}}{{{{ t.date[8:10] }}}}/{{{{ t.date[5:7] }}}} · {{% endif %}}{{{{ t.category_name }}}} · {{{{ 'BNP' if t.account == bnp else 'Hello' }}}}{{% if t.pending %}} · en attente{{% endif %}}</sub> | {{{{ '%+.2f'|format(t.amount)|replace('.', ',') }}}} € |
+{{% for t in (state_attr('{ent["spent"]}', 'recent_transactions') or [])[:{count}] %}}| <ha-icon icon="{{{{ t.icon }}}}"></ha-icon> | **{{{{ t.merchant[:28]|trim }}}}**<br><sub>{{% if t.date %}}{{{{ t.date[8:10] }}}}/{{{{ t.date[5:7] }}}} · {{% endif %}}{{{{ t.category_name }}}} · {{{{ t.account }}}}{{% if t.pending %}} · en attente{{% endif %}}</sub> | {{{{ '%+.2f'|format(t.amount)|replace('.', ',') }}}} € |
 {{% endfor %}}
 
 [Toutes les opérations →](operations)"""
@@ -488,7 +485,7 @@ Dépensé **{{{{ ts|round(0)|int }}}} €** sur {{{{ tb|round(0)|int }}}} €{{%
 ## {{{{ '%+.2f'|format(a)|replace('.', ',') }}}} €
 **{{{{ states(e) }}}}**
 
-{{{{ state_attr(e, 'category_name') }}}} · {{{{ 'BNP Paribas' if state_attr(e, 'account') == {first_iban} else 'Hello bank!' }}}}
+{{{{ state_attr(e, 'category_name') }}}} · {{{{ state_attr(e, 'account') }}}}
 
 </center>
 
