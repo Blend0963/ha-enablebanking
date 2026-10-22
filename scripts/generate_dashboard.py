@@ -453,18 +453,23 @@ Dépensé **{{{{ ts|round(0)|int }}}} €** sur {{{{ tb|round(0)|int }}}} €{{%
 
 {% endfor %}"""
     )
-    recent = Literal(
-        f"""{{% set bnp = {first_iban} %}}
+
+    def recent(count: int) -> Literal:
+        return Literal(
+            f"""{{% set bnp = {first_iban} %}}
 | | Opération | Montant |
 |:--|:--|--:|
-{{% for t in (state_attr('{ent["spent"]}', 'recent_transactions') or [])[:15] %}}| <ha-icon icon="{{{{ t.icon }}}}"></ha-icon> | **{{{{ t.merchant[:28]|trim }}}}**<br><sub>{{% if t.date %}}{{{{ t.date[8:10] }}}}/{{{{ t.date[5:7] }}}} · {{% endif %}}{{{{ t.category_name }}}} · {{{{ 'BNP' if t.account == bnp else 'Hello' }}}}{{% if t.pending %}} · en attente{{% endif %}}</sub> | {{{{ '%+.2f'|format(t.amount)|replace('.', ',') }}}} € |
-{{% endfor %}}"""
-    )
+{{% for t in (state_attr('{ent["spent"]}', 'recent_transactions') or [])[:{count}] %}}| <ha-icon icon="{{{{ t.icon }}}}"></ha-icon> | **{{{{ t.merchant[:28]|trim }}}}**<br><sub>{{% if t.date %}}{{{{ t.date[8:10] }}}}/{{{{ t.date[5:7] }}}} · {{% endif %}}{{{{ t.category_name }}}} · {{{{ 'BNP' if t.account == bnp else 'Hello' }}}}{{% if t.pending %}} · en attente{{% endif %}}</sub> | {{{{ '%+.2f'|format(t.amount)|replace('.', ',') }}}} € |
+{{% endfor %}}
+
+[Toutes les opérations →](operations)"""
+        )
+
     comptes_detail: list[dict[str, Any]] = [
         {"type": "heading", "heading": "Par compte", "icon": "mdi:compare-horizontal"},
         {"type": "markdown", "content": per_account},
         {"type": "heading", "heading": "Dernières opérations", "icon": "mdi:format-list-bulleted"},
-        {"type": "markdown", "content": recent},
+        {"type": "markdown", "content": recent(15)},
     ]
 
     # ------------------------------------------------- vue opérations ---
@@ -558,25 +563,154 @@ Dépensé **{{{{ ts|round(0)|int }}}} €** sur {{{{ tb|round(0)|int }}}} €{{%
         ],
     }
 
+    # ------------------------------------------------- assemble views ---
+    # Cards with a markdown table: full width (needs card-mod; ignored without).
+    table_style = {
+        "style": {
+            "ha-markdown$": "table { width: 100%; border-collapse: collapse; }\n"
+            "th, td { padding: 8px 10px; }\n"
+            "tr { border-bottom: 1px solid var(--divider-color); }\n"
+            "td:last-child, th:last-child { text-align: right; }\n"
+        }
+    }
+
+    def styled(card: dict[str, Any]) -> dict[str, Any]:
+        return {**card, "card_mod": table_style}
+
+    def view(title: str, path: str, icon: str, sections: list[dict[str, Any]], cols: int = 3):
+        return {
+            "title": title,
+            "path": path,
+            "icon": icon,
+            "type": "sections",
+            "max_columns": cols,
+            "sections": sections,
+        }
+
+    def section(cards: list[dict[str, Any]], span: int | None = None) -> dict[str, Any]:
+        out: dict[str, Any] = {"type": "grid"}
+        if span:
+            out["column_span"] = span
+        out["cards"] = cards
+        return out
+
+    soldes_chart = comptes[-1]
+    account_cards = comptes[:-1]
+    kpis, donut, cumul = mois[:4], mois[4], mois[5]
+    tiles, monthly = cats[:-1], cats[-1]
+    budget_heading, budget_card, budget_entities = budgets
+
+    budget_summary = {
+        "type": "custom:mushroom-template-card",
+        "entity": ent["over"],
+        "primary": "{% set r = state_attr(entity, 'total_budget')|float(0) - "
+        "state_attr(entity, 'total_spent_budgeted')|float(0) %}"
+        "{% if state_attr(entity, 'total_budget')|float(0) == 0 %}Aucun budget"
+        "{% elif r >= 0 %}Il te reste {{ r|round(0)|int }} €"
+        "{% else %}Budget dépassé de {{ (r|abs)|round(0)|int }} €{% endif %}",
+        "secondary": "{% set b = state_attr(entity, 'total_budget')|float(0) %}"
+        "{% set d = state_attr(entity, 'total_spent_budgeted')|float(0) %}"
+        "{% if b %}{{ d|round(0)|int }} € dépensés sur {{ b|round(0)|int }} €"
+        "{% if states(entity)|int(0) %} · {{ states(entity) }} catégorie(s) dépassée(s)"
+        "{% endif %}{% else %}Touche pour définir tes budgets{% endif %}",
+        "icon": "mdi:target",
+        "icon_color": "{% set r = state_attr(entity, 'total_budget')|float(0) - "
+        "state_attr(entity, 'total_spent_budgeted')|float(0) %}"
+        "{{ 'red' if r < 0 else ('orange' if states(entity)|int(0) else 'green') }}",
+        "tap_action": {"action": "navigate", "navigation_path": "budgets"},
+        "grid_options": {"columns": "full"},
+    }
+    nav_tiles = [
+        {
+            "type": "custom:mushroom-template-card",
+            "primary": label,
+            "icon": icon,
+            "icon_color": color,
+            "layout": "vertical",
+            "tap_action": {"action": "navigate", "navigation_path": path},
+            "grid_options": {"columns": 3},
+        }
+        for label, icon, color, path in (
+            ("Dépenses", "mdi:chart-donut", "red", "depenses"),
+            ("Budgets", "mdi:target", "orange", "budgets"),
+            ("Comptes", "mdi:bank", "green", "comptes"),
+            ("Opérations", "mdi:receipt-text-outline", "blue", "operations"),
+        )
+    ]
+
+    home = view(
+        "Ma banque",
+        "banque",
+        "mdi:bank",
+        [
+            section([*account_cards, *nav_tiles]),
+            section([*kpis, budget_summary]),
+            section(
+                [
+                    {
+                        "type": "heading",
+                        "heading": "Dernières opérations",
+                        "icon": "mdi:format-list-bulleted",
+                    },
+                    styled({"type": "markdown", "content": recent(6)}),
+                ]
+            ),
+        ],
+    )
+    depenses = view(
+        "Dépenses",
+        "depenses",
+        "mdi:chart-donut",
+        [
+            section(
+                [{"type": "heading", "heading": "Répartition", "icon": "mdi:chart-donut"}, donut]
+            ),
+            section(tiles),
+            section(
+                [
+                    {"type": "heading", "heading": "Tendances", "icon": "mdi:chart-bar"},
+                    monthly,
+                    cumul,
+                ]
+            ),
+        ],
+    )
+    budgets_view = view(
+        "Budgets",
+        "budgets",
+        "mdi:target",
+        [
+            section([budget_heading, styled(budget_card)], span=2),
+            section([budget_entities]),
+        ],
+    )
+    comptes_view = view(
+        "Comptes",
+        "comptes",
+        "mdi:bank",
+        [
+            section(
+                [
+                    {"type": "heading", "heading": "Soldes", "icon": "mdi:chart-areaspline"},
+                    *account_cards[1:],
+                    soldes_chart,
+                ],
+                span=2,
+            ),
+            section(
+                [
+                    comptes_detail[0],
+                    styled(comptes_detail[1]),
+                ]
+            ),
+        ],
+    )
+    for sec in operations_view["sections"]:
+        sec["cards"] = [styled(c) if c.get("type") == "markdown" else c for c in sec["cards"]]
+
     return {
         "title": "Ma banque",
-        "views": [
-            {
-                "title": "Ma banque",
-                "path": "banque",
-                "icon": "mdi:bank",
-                "type": "sections",
-                "max_columns": 3,
-                "sections": [
-                    {"type": "grid", "cards": comptes},
-                    {"type": "grid", "cards": mois},
-                    {"type": "grid", "cards": cats},
-                    {"type": "grid", "cards": budgets},
-                    {"type": "grid", "cards": comptes_detail},
-                ],
-            },
-            operations_view,
-        ],
+        "views": [home, depenses, budgets_view, comptes_view, operations_view],
     }
 
 

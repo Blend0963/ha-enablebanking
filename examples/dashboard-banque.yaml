@@ -21,7 +21,8 @@ views:
     - type: heading
       heading: Mes comptes
       icon: mdi:wallet-outline
-    - type: custom:mushroom-template-card
+    - &id003
+      type: custom:mushroom-template-card
       entity: sensor.bnp_paribas_solde_total
       primary: '{% set t = states(entity)|float(0) %}{{ ''{:,.2f}''.format(t).replace('','', '' '').replace(''.'', '','') }} €'
       secondary: '{% set n = state_attr(entity, ''overdrawn_accounts'')|int(0) %}Solde total · {{ ''à découvert'' if states(entity)|float(0) < 0 else ''créditeur'' }}{% if n %} · {{ n }} compte{{ ''s'' if n > 1 }} à découvert{% endif %}'
@@ -33,7 +34,8 @@ views:
       fill_container: true
       grid_options:
         columns: full
-    - type: custom:mushroom-template-card
+    - &id004
+      type: custom:mushroom-template-card
       entity: sensor.SOLDE_BNP
       primary: BNP Paribas
       secondary: '{% set b = states(''sensor.SOLDE_BNP'')|float(0) %}{{ ''%.2f''|format(b)|replace(''.'', '','') }} €{% if b < 0 %} · À DÉCOUVERT{% endif %} · {{ state_attr(''sensor.TRANSACTIONS_BNP'', ''month_spent'')|float(0)|round(0)|int }} € ce mois'
@@ -44,7 +46,8 @@ views:
         action: more-info
       grid_options:
         columns: 6
-    - type: custom:mushroom-template-card
+    - &id005
+      type: custom:mushroom-template-card
       entity: sensor.SOLDE_HELLO
       primary: Hello bank!
       secondary: '{% set b = states(''sensor.SOLDE_HELLO'')|float(0) %}{{ ''%.2f''|format(b)|replace(''.'', '','') }} €{% if b < 0 %} · À DÉCOUVERT{% endif %} · {{ state_attr(''sensor.TRANSACTIONS_HELLO'', ''month_spent'')|float(0)|round(0)|int }} € ce mois'
@@ -55,58 +58,46 @@ views:
         action: more-info
       grid_options:
         columns: 6
-    - type: custom:apexcharts-card
-      header:
-        show: true
-        title: Évolution des soldes (30 jours)
-        show_states: false
-      graph_span: 30d
-      apex_config:
-        chart:
-          height: 230
-        legend:
-          position: top
-        stroke:
-          curve: smooth
-        fill:
-          type: gradient
-          gradient:
-            opacityFrom: 0.35
-            opacityTo: 0.02
-        yaxis:
-          labels:
-            formatter: EVAL:function(v){return Math.round(v)+' €'}
-        tooltip:
-          y:
-            formatter: EVAL:function(v){return v.toFixed(2).replace('.',',')+' €'}
-        annotations:
-          yaxis:
-          - y: 0
-            borderColor: '#E5484D'
-            strokeDashArray: 4
-            label:
-              text: Découvert
-              position: left
-              style:
-                color: '#fff'
-                background: '#E5484D'
-      series:
-      - entity: sensor.SOLDE_BNP
-        name: BNP Paribas
-        color: '#00915A'
-        type: area
-        stroke_width: 3
-        group_by:
-          func: last
-          duration: 1d
-      - entity: sensor.SOLDE_HELLO
-        name: Hello bank!
-        color: '#2D9CDB'
-        type: area
-        stroke_width: 3
-        group_by:
-          func: last
-          duration: 1d
+    - type: custom:mushroom-template-card
+      primary: Dépenses
+      icon: mdi:chart-donut
+      icon_color: red
+      layout: vertical
+      tap_action:
+        action: navigate
+        navigation_path: depenses
+      grid_options:
+        columns: 3
+    - type: custom:mushroom-template-card
+      primary: Budgets
+      icon: mdi:target
+      icon_color: orange
+      layout: vertical
+      tap_action:
+        action: navigate
+        navigation_path: budgets
+      grid_options:
+        columns: 3
+    - type: custom:mushroom-template-card
+      primary: Comptes
+      icon: mdi:bank
+      icon_color: green
+      layout: vertical
+      tap_action:
+        action: navigate
+        navigation_path: comptes
+      grid_options:
+        columns: 3
+    - type: custom:mushroom-template-card
+      primary: Opérations
+      icon: mdi:receipt-text-outline
+      icon_color: blue
+      layout: vertical
+      tap_action:
+        action: navigate
+        navigation_path: operations
+      grid_options:
+        columns: 3
   - type: grid
     cards:
     - type: heading
@@ -139,6 +130,53 @@ views:
       icon_color: '{% set s = states(''sensor.bnp_paribas_revenus_du_mois'')|float(0) - states(''sensor.bnp_paribas_depenses_totales_du_mois'')|float(0) %}{{ ''green'' if s >= 0 else ''orange'' }}'
       grid_options:
         columns: full
+    - type: custom:mushroom-template-card
+      entity: sensor.bnp_paribas_budgets_depasses
+      primary: '{% set r = state_attr(entity, ''total_budget'')|float(0) - state_attr(entity, ''total_spent_budgeted'')|float(0) %}{% if state_attr(entity, ''total_budget'')|float(0) == 0 %}Aucun budget{% elif r >= 0 %}Il te reste {{ r|round(0)|int }} €{% else %}Budget dépassé de {{ (r|abs)|round(0)|int }} €{% endif %}'
+      secondary: '{% set b = state_attr(entity, ''total_budget'')|float(0) %}{% set d = state_attr(entity, ''total_spent_budgeted'')|float(0) %}{% if b %}{{ d|round(0)|int }} € dépensés sur {{ b|round(0)|int }} €{% if states(entity)|int(0) %} · {{ states(entity) }} catégorie(s) dépassée(s){% endif %}{% else %}Touche pour définir tes budgets{% endif %}'
+      icon: mdi:target
+      icon_color: '{% set r = state_attr(entity, ''total_budget'')|float(0) - state_attr(entity, ''total_spent_budgeted'')|float(0) %}{{ ''red'' if r < 0 else (''orange'' if states(entity)|int(0) else ''green'') }}'
+      tap_action:
+        action: navigate
+        navigation_path: budgets
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: Dernières opérations
+      icon: mdi:format-list-bulleted
+    - type: markdown
+      content: |-
+        {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
+        | | Opération | Montant |
+        |:--|:--|--:|
+        {% for t in (state_attr('sensor.bnp_paribas_depenses_totales_du_mois', 'recent_transactions') or [])[:6] %}| <ha-icon icon="{{ t.icon }}"></ha-icon> | **{{ t.merchant[:28]|trim }}**<br><sub>{% if t.date %}{{ t.date[8:10] }}/{{ t.date[5:7] }} · {% endif %}{{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · en attente{% endif %}</sub> | {{ '%+.2f'|format(t.amount)|replace('.', ',') }} € |
+        {% endfor %}
+
+        [Toutes les opérations →](operations)
+      card_mod: &id002
+        style:
+          ha-markdown$: 'table { width: 100%; border-collapse: collapse; }
+
+            th, td { padding: 8px 10px; }
+
+            tr { border-bottom: 1px solid var(--divider-color); }
+
+            td:last-child, th:last-child { text-align: right; }
+
+            '
+- title: Dépenses
+  path: depenses
+  icon: mdi:chart-donut
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Répartition
+      icon: mdi:chart-donut
     - type: custom:apexcharts-card
       chart_type: donut
       header:
@@ -210,37 +248,6 @@ views:
       - entity: sensor.bnp_paribas_depenses_autre
         name: Autre
         color: '#B4B4B4'
-    - type: custom:apexcharts-card
-      header:
-        show: true
-        title: Dépenses cumulées par compte
-        show_states: false
-      graph_span: 31d
-      span:
-        start: month
-      apex_config:
-        chart:
-          height: 220
-        legend:
-          position: top
-        yaxis:
-          labels:
-            formatter: EVAL:function(v){return Math.round(v)+' €'}
-      series:
-      - entity: sensor.TRANSACTIONS_BNP
-        attribute: month_spent
-        name: BNP Paribas
-        color: '#00915A'
-        type: line
-        curve: stepline
-        stroke_width: 3
-      - entity: sensor.TRANSACTIONS_HELLO
-        attribute: month_spent
-        name: Hello bank!
-        color: '#2D9CDB'
-        type: line
-        curve: stepline
-        stroke_width: 3
   - type: grid
     cards:
     - type: heading
@@ -697,6 +704,11 @@ views:
         action: more-info
       grid_options:
         columns: 6
+  - type: grid
+    cards:
+    - type: heading
+      heading: Tendances
+      icon: mdi:chart-bar
     - type: custom:apexcharts-card
       header:
         show: true
@@ -737,7 +749,45 @@ views:
           type: state
           period: month
           align: start
+    - type: custom:apexcharts-card
+      header:
+        show: true
+        title: Dépenses cumulées par compte
+        show_states: false
+      graph_span: 31d
+      span:
+        start: month
+      apex_config:
+        chart:
+          height: 220
+        legend:
+          position: top
+        yaxis:
+          labels:
+            formatter: EVAL:function(v){return Math.round(v)+' €'}
+      series:
+      - entity: sensor.TRANSACTIONS_BNP
+        attribute: month_spent
+        name: BNP Paribas
+        color: '#00915A'
+        type: line
+        curve: stepline
+        stroke_width: 3
+      - entity: sensor.TRANSACTIONS_HELLO
+        attribute: month_spent
+        name: Hello bank!
+        color: '#2D9CDB'
+        type: line
+        curve: stepline
+        stroke_width: 3
+- title: Budgets
+  path: budgets
+  icon: mdi:target
+  type: sections
+  max_columns: 3
+  sections:
   - type: grid
+    column_span: 2
     cards:
     - type: heading
       heading: Budgets du mois
@@ -767,6 +817,9 @@ views:
         {% for r in rows %}{% set left = r.budget - r.spent %}| {{ '🔴' if r.over else ('🟠' if r.used_pct >= 80 else '🟢') }} {{ r.category }} | {{ r.spent|round(0)|int }} € | {% if left >= 0 %}**{{ left|round(0)|int }} €**{% else %}**dépassé de {{ (left|abs)|round(0)|int }} €**{% endif %} |
         {% endfor %}
         {% endif %}
+      card_mod: *id002
+  - type: grid
+    cards:
     - type: entities
       title: Définir les budgets
       show_header_toggle: false
@@ -800,6 +853,73 @@ views:
         name: Virements émis
       - entity: number.bnp_paribas_budget_autre
         name: Autre
+- title: Comptes
+  path: comptes
+  icon: mdi:bank
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    column_span: 2
+    cards:
+    - type: heading
+      heading: Soldes
+      icon: mdi:chart-areaspline
+    - *id003
+    - *id004
+    - *id005
+    - type: custom:apexcharts-card
+      header:
+        show: true
+        title: Évolution des soldes (30 jours)
+        show_states: false
+      graph_span: 30d
+      apex_config:
+        chart:
+          height: 230
+        legend:
+          position: top
+        stroke:
+          curve: smooth
+        fill:
+          type: gradient
+          gradient:
+            opacityFrom: 0.35
+            opacityTo: 0.02
+        yaxis:
+          labels:
+            formatter: EVAL:function(v){return Math.round(v)+' €'}
+        tooltip:
+          y:
+            formatter: EVAL:function(v){return v.toFixed(2).replace('.',',')+' €'}
+        annotations:
+          yaxis:
+          - y: 0
+            borderColor: '#E5484D'
+            strokeDashArray: 4
+            label:
+              text: Découvert
+              position: left
+              style:
+                color: '#fff'
+                background: '#E5484D'
+      series:
+      - entity: sensor.SOLDE_BNP
+        name: BNP Paribas
+        color: '#00915A'
+        type: area
+        stroke_width: 3
+        group_by:
+          func: last
+          duration: 1d
+      - entity: sensor.SOLDE_HELLO
+        name: Hello bank!
+        color: '#2D9CDB'
+        type: area
+        stroke_width: 3
+        group_by:
+          func: last
+          duration: 1d
   - type: grid
     cards:
     - type: heading
@@ -820,16 +940,7 @@ views:
         {% endfor %}
 
         {% endfor %}
-    - type: heading
-      heading: Dernières opérations
-      icon: mdi:format-list-bulleted
-    - type: markdown
-      content: |-
-        {% set bnp = state_attr('sensor.SOLDE_BNP', 'iban') %}
-        | | Opération | Montant |
-        |:--|:--|--:|
-        {% for t in (state_attr('sensor.bnp_paribas_depenses_totales_du_mois', 'recent_transactions') or [])[:15] %}| <ha-icon icon="{{ t.icon }}"></ha-icon> | **{{ t.merchant[:28]|trim }}**<br><sub>{% if t.date %}{{ t.date[8:10] }}/{{ t.date[5:7] }} · {% endif %}{{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · en attente{% endif %}</sub> | {{ '%+.2f'|format(t.amount)|replace('.', ',') }} € |
-        {% endfor %}
+      card_mod: *id002
 - title: Opérations
   path: operations
   icon: mdi:receipt-text-outline
@@ -889,6 +1000,7 @@ views:
         {% endif %}
       grid_options:
         columns: full
+      card_mod: *id002
     - type: custom:mushroom-template-card
       primary: Plus récente
       icon: mdi:chevron-left
@@ -942,3 +1054,4 @@ views:
         <ha-icon icon="{{ t.icon }}"></ha-icon> **{{ t.merchant[:30]|trim }}** · **{{ '%+.2f'|format(t.amount)|replace('.', ',') }} €** · {{ t.category_name }} · {{ 'BNP' if t.account == bnp else 'Hello' }}{% if t.pending %} · *en attente*{% endif %}<br>
         <sub>{{ t.label }}</sub>
         {% endfor %}
+      card_mod: *id002
