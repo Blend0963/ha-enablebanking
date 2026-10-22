@@ -744,13 +744,27 @@ views:
       icon: mdi:target
     - type: markdown
       content: |-
-        {% set rows = state_attr('sensor.bnp_paribas_budgets_depasses', 'budgets') or [] %}
+        {% set e = 'sensor.bnp_paribas_budgets_depasses' %}
+        {% set rows = state_attr(e, 'budgets') or [] %}
         {% if not rows %}
         *Aucun budget défini. Renseigne un montant ci-dessous (0 = pas de budget).*
         {% else %}
-        | Catégorie | | Dépensé |
-        |:--|:--|--:|
-        {% for r in rows %}{% set n = [((r.used_pct|int) / 10)|round(0)|int, 10]|min %}| {{ '🔴' if r.over else ('🟠' if r.used_pct >= 80 else '🟢') }} {{ r.category }} | {{ '▰' * n }}{{ '▱' * (10 - n) }} {{ r.used_pct }} % | {{ r.spent|round(0)|int }} / {{ r.budget|round(0)|int }} € |
+        {% set tb = state_attr(e, 'total_budget')|float(0) %}
+        {% set ts = state_attr(e, 'total_spent_budgeted')|float(0) %}
+        {% set reste = tb - ts %}
+        {% set fin = (now().replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1) %}
+        {% set jours = fin.day - now().day + 1 %}
+        <center>
+
+        {{ 'Il te reste' if reste >= 0 else 'Budget dépassé de' }}
+        # {{ (reste|abs)|round(0)|int }} €
+        Dépensé **{{ ts|round(0)|int }} €** sur {{ tb|round(0)|int }} €{% if reste > 0 %} · soit **{{ (reste / jours)|round(0)|int }} €/jour** jusqu'à la fin du mois{% endif %}
+
+        </center>
+
+        | Catégorie | Dépensé | Reste |
+        |:--|--:|--:|
+        {% for r in rows %}{% set left = r.budget - r.spent %}| {{ '🔴' if r.over else ('🟠' if r.used_pct >= 80 else '🟢') }} {{ r.category }} | {{ r.spent|round(0)|int }} € | {% if left >= 0 %}**{{ left|round(0)|int }} €**{% else %}**dépassé de {{ (left|abs)|round(0)|int }} €**{% endif %} |
         {% endfor %}
         {% endif %}
     - type: entities
