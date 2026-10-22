@@ -644,6 +644,7 @@ class EnableBankingBrowseSensor(EnableBankingEntryEntity, SensorEntity):
             "total": len(items),
             "filter": names.get(self.coordinator.browse_category, "Toutes"),
             "period": BROWSE_PERIODS.get(self.coordinator.browse_period),
+            "search": self.coordinator.browse_search,
             "sum_out": round(-sum(i.amount for i in items if i.amount < 0), 2),
             "sum_in": round(sum(i.amount for i in items if i.amount > 0), 2),
             "operations": [compact(i, names) for i in items[:BROWSE_LIST_SIZE]],

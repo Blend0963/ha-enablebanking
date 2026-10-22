@@ -3,6 +3,11 @@
 Releases up to and including 0.6.11 are described in the
 [GitHub release notes](https://github.com/SurfHost/ha-enablebanking/releases).
 
+## [0.10.2] - 2026-10-22
+
+### Added
+- **Transaction search**: "Rechercher une opération" text entity. Every word must appear in the exact label, the merchant, the category or the account name (case and accents ignored); a number ("12,60") also matches the amount. Combines with the category and period filters; empty shows everything. The browser sensor gains a `search` attribute, and the example dashboard a search box on the Opérations view.
+
 ## [0.10.1] - 2026-10-22
 
 ### Added

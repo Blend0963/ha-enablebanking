@@ -77,6 +77,7 @@ def build(a: argparse.Namespace) -> dict[str, Any]:
         "browse": f"sensor.{p}_operation_selectionnee",
         "over": f"sensor.{p}_budgets_depasses",
         "f_cat": f"select.{p}_filtre_des_operations",
+        "search": f"text.{p}_rechercher_une_operation",
         "f_period": f"select.{p}_periode_des_operations",
         "classify": f"select.{p}_classer_l_operation",
         "prev": f"button.{p}_operation_precedente",
@@ -104,7 +105,7 @@ def build(a: argparse.Namespace) -> dict[str, Any]:
     ops_list = Literal(
         f"""{{% set e = '{ent["browse"]}' %}}
 {{% set ops = state_attr(e, 'operations') or [] %}}
-**{{{{ state_attr(e, 'total') or 0 }}}} opérations** · {{{{ state_attr(e, 'filter') }}}} · {{{{ state_attr(e, 'period') }}}}
+**{{{{ state_attr(e, 'total') or 0 }}}} opérations** · {{{{ state_attr(e, 'filter') }}}} · {{{{ state_attr(e, 'period') }}}}{{% if state_attr(e, 'search') %}} · 🔍 « {{{{ state_attr(e, 'search') }}}} »{{% endif %}}
 <br>Sorties **{{{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }}}} €** · Entrées **{{{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }}}} €**{{% if (state_attr(e, 'total') or 0) > ops|length %}} · {{{{ ops|length }}}} plus récentes affichées{{% endif %}}
 {{% set ns = namespace(day='') %}}
 {{% for t in ops %}}
@@ -529,6 +530,16 @@ Dépensé **{{{{ ts|round(0)|int }}}} €** sur {{{{ tb|round(0)|int }}}} €{{%
                 "type": "grid",
                 "cards": [
                     {"type": "heading", "heading": "Opération", "icon": "mdi:magnify"},
+                    {
+                        "type": "entities",
+                        "entities": [
+                            {
+                                "entity": ent["search"],
+                                "name": "Rechercher (mot ou montant)",
+                            }
+                        ],
+                        "grid_options": {"columns": "full"},
+                    },
                     {
                         "type": "tile",
                         "entity": ent["f_cat"],

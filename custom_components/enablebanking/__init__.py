@@ -22,6 +22,7 @@ PLATFORMS: list[Platform] = [
     Platform.SELECT,
     Platform.BUTTON,
     Platform.NUMBER,
+    Platform.TEXT,
 ]
 
 SERVICE_REFRESH = "refresh"

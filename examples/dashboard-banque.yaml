@@ -287,7 +287,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -336,7 +336,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -385,7 +385,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -434,7 +434,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -483,7 +483,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -532,7 +532,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -581,7 +581,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -630,7 +630,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -679,7 +679,7 @@ views:
                     content: |-
                       {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
                       {% set ops = state_attr(e, 'operations') or [] %}
-                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+                      **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
                       <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
                       {% set ns = namespace(day='') %}
                       {% for t in ops %}
@@ -942,6 +942,12 @@ views:
     - type: heading
       heading: Opération
       icon: mdi:magnify
+    - type: entities
+      entities:
+      - entity: text.bnp_paribas_rechercher_une_operation
+        name: Rechercher (mot ou montant)
+      grid_options:
+        columns: full
     - type: tile
       entity: select.bnp_paribas_filtre_des_operations
       name: Catégorie
@@ -1032,7 +1038,7 @@ views:
       content: |-
         {% set e = 'sensor.bnp_paribas_operation_selectionnee' %}
         {% set ops = state_attr(e, 'operations') or [] %}
-        **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}
+        **{{ state_attr(e, 'total') or 0 }} opérations** · {{ state_attr(e, 'filter') }} · {{ state_attr(e, 'period') }}{% if state_attr(e, 'search') %} · 🔍 « {{ state_attr(e, 'search') }} »{% endif %}
         <br>Sorties **{{ '%.2f'|format(state_attr(e, 'sum_out')|float(0))|replace('.', ',') }} €** · Entrées **{{ '%.2f'|format(state_attr(e, 'sum_in')|float(0))|replace('.', ',') }} €**{% if (state_attr(e, 'total') or 0) > ops|length %} · {{ ops|length }} plus récentes affichées{% endif %}
         {% set ns = namespace(day='') %}
         {% for t in ops %}

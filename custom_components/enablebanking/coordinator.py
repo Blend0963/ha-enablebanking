@@ -86,6 +86,7 @@ from .transactions import (
     prune_transactions,
     sorted_transactions,
 )
+from .transactions import label as tx_label
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -144,6 +145,8 @@ class EnableBankingCoordinator(DataUpdateCoordinator[EnableBankingData]):
         # filtered list, newest first.
         self.browse_category: str = ""
         self.browse_period: str = DEFAULT_BROWSE_PERIOD
+        # Free-text search (words in label/merchant/category/account, or an amount).
+        self.browse_search: str = ""
         self.browse_index: int = 0
         # Monthly budget per category slug (0 / missing = no budget). Set by
         # the number entities, which restore their value across restarts.
@@ -328,12 +331,19 @@ class EnableBankingCoordinator(DataUpdateCoordinator[EnableBankingData]):
     def browse_items(self) -> list[CategorizedTransaction]:
         """Transactions matching the browser's category and period, newest first."""
         start, end = period_bounds(self.browse_period, dt_util.now().date())
+        names = self.categorizer.categories
         return [
             i
             for i in self.categorized
             if (not self.browse_category or i.category == self.browse_category)
             and (start is None or (i.day is not None and start <= i.day <= end))
+            and matches_search(i, self.browse_search, names)
         ]
+
+    def browse_set_search(self, query: str) -> None:
+        self.browse_search = query.strip()
+        self.browse_index = 0
+        self.async_update_listeners()
 
     def browse_set_period(self, period: str) -> None:
         self.browse_period = period
@@ -631,6 +641,35 @@ class EnableBankingCoordinator(DataUpdateCoordinator[EnableBankingData]):
             notification_id=notification_id,
         )
         self._warned_expiry = True
+
+
+def matches_search(item: CategorizedTransaction, query: str, names: dict[str, str]) -> bool:
+    """True if every word of ``query`` appears in the transaction, or the amount matches.
+
+    Words are looked up (case and accents ignored) in the exact label, the
+    merchant, the category name and the account name. A query that is a
+    number ("12,60", "12.6", "-35") also matches the amount, sign ignored.
+    """
+    if not query.strip():
+        return True
+    raw = query.strip().replace(" ", "").replace("€", "").replace(",", ".")
+    try:
+        wanted = abs(float(raw))
+    except ValueError:
+        wanted = None
+    if wanted is not None and abs(abs(item.amount) - wanted) < 0.005:
+        return True
+    haystack = normalize(
+        " ".join(
+            (
+                tx_label(item.raw),
+                item.merchant,
+                names.get(item.category, item.category),
+                item.account,
+            )
+        )
+    )
+    return all(word in haystack for word in normalize(query).split())
 
 
 def period_bounds(period: str, today: date) -> tuple[date | None, date]:
